@@ -36,30 +36,22 @@ public class DownloadCompleteReceived extends BroadcastReceiver {
     Cursor cursor = downloadManager.query(query);
     if (cursor.moveToFirst()) {
       int downloadStatus = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
-      String downloadLocalUri =
-          cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI));
-      String downloadMimeType =
-          cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_MEDIA_TYPE));
-      if ((downloadStatus == DownloadManager.STATUS_SUCCESSFUL) && downloadLocalUri != null) {
-        openDownloadedAttachment(context, Uri.parse(downloadLocalUri), downloadMimeType);
+      Uri fileUri =
+          Uri.parse(cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)));
+      if ((downloadStatus == DownloadManager.STATUS_SUCCESSFUL) && fileUri != null) {
+        openDownloadedAttachment(context, fileUri);
       }
     }
     cursor.close();
   }
 
-  private void openDownloadedAttachment(final Context context, Uri attachmentUri,
-      final String attachmentMimeType) {
+  private void openDownloadedAttachment(final Context context, Uri attachmentUri) {
     if (attachmentUri != null) {
-      if (ContentResolver.SCHEME_FILE.equals(attachmentUri.getScheme())) {
-        File file = new File(attachmentUri.getPath());
-        attachmentUri =
-            FileProvider.getUriForFile(context, "com.silicon.raja.downloadmanagerandroid.provider",
-                file);
-      }
-
       Intent openAttachmentIntent = new Intent(Intent.ACTION_VIEW);
-      openAttachmentIntent.setDataAndType(attachmentUri, attachmentMimeType);
-      openAttachmentIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+      openAttachmentIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      openAttachmentIntent.setDataAndType(attachmentUri,
+          context.getContentResolver().getType(attachmentUri));
+      openAttachmentIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
       try {
         context.startActivity(openAttachmentIntent);
       } catch (ActivityNotFoundException e) {
