@@ -12,6 +12,7 @@ import android.support.v4.content.FileProvider;
 import android.util.Log;
 import android.widget.Toast;
 import java.io.File;
+import java.io.IOException;
 
 /**
  * Created by rajamohamed on 29/03/17.
@@ -38,25 +39,23 @@ public class DownloadCompleteReceived extends BroadcastReceiver {
       int downloadStatus = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
       Uri fileUri =
           Uri.parse(cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)));
-      if ((downloadStatus == DownloadManager.STATUS_SUCCESSFUL) && fileUri != null) {
-        openDownloadedAttachment(context, fileUri);
+      String fileUrl = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_URI));
+
+      try {
+        File dstFile =
+            FileUtils.createAttachmentCacheFile(context, FileUtils.getFileName(context, fileUri));
+        FileUtils.copyFile(context, fileUri, dstFile);
+        final Uri uri = FileProvider.getUriForFile(context, BuildConfig.FILE_PROVIDER_AUTHORITY,
+            new File(context.getCacheDir(),
+                BuildConfig.ATTACHMENT_DOWNLOAD_CACHE_FOLDER + "/" + dstFile.getName()));
+        context.getSharedPreferences("AttachmentPreferences", Context.MODE_PRIVATE)
+            .edit()
+            .putString(fileUrl + "_file_path", dstFile.getPath())
+            .commit();
+      } catch (IOException e) {
+        e.printStackTrace();
       }
     }
     cursor.close();
-  }
-
-  private void openDownloadedAttachment(final Context context, Uri attachmentUri) {
-    if (attachmentUri != null) {
-      Intent openAttachmentIntent = new Intent(Intent.ACTION_VIEW);
-      openAttachmentIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-      openAttachmentIntent.setDataAndType(attachmentUri,
-          context.getContentResolver().getType(attachmentUri));
-      openAttachmentIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-      try {
-        context.startActivity(openAttachmentIntent);
-      } catch (ActivityNotFoundException e) {
-        Toast.makeText(context, "Unable to open the file", Toast.LENGTH_LONG).show();
-      }
-    }
   }
 }
